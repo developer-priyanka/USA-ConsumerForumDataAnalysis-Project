@@ -1,117 +1,82 @@
 Dataset Description
 Below is the description of the data set
-Column heading index Description
-Date received 0 date on which consumer filed the complaint,Product 1 Type of the product,
-Sub-product 2 Sub product type,Issue 3 Issue faced by the consumer,Sub-issue 4 Any sub issues if exists, Consumer complaint narrative 5 Detailed description of complaint,
-Company public response 6 Company’s public response to the complaint,Company 7 Name of the company,State 8 State from which consumer filed the complaint,ZIP code 9 Zipcode,Submitted via 10 Channel from which complaint was
-submitted,Date sent to company 11 Date on which consumer forum forwarded the complaint to company,Company response to consumer 12 Company’s response to the consumer,Timely response? 13,Consumer disputed? 14, Complaint ID 15 Unique complaint id 
+index Column heading-Description
+$0 Date received- date on which consumer filed the complaint,
+$1 Product-Type of the product,
+$2 Sub-product-Sub product type,
+$3 Issue-Issue faced by the consumer,
+$4 Sub-issue-Any sub issues if exists,
+$5 Consumer complaint narrative-Detailed description of complaint,
+$6 Company public response-Companyâ€™s public response to the complaint,
+$7 Company-Name of the company,
+$8 State-State from which consumer filed the complaint,
+$9 ZIP code-Zipcode,
+$10 Submitted via-Channel from which complaint was submitted,
+$11 Date sent to company-Date on which consumer forum forwarded the complaint to company,
+$12 Company response to consumer-Companyâ€™s response to the consumer,
+$13 Timely response?,
+$14 Consumer disputed?, 
+$15 Complaint ID-Unique complaint id 
 
-REGISTER '/home/acadgild/pig-0.14.0/lib/piggybank.jar';
+REGISTER '/home/acadgild/pig-0.14.0/lib/piggybank.jar';  //Register the jar to load the csv file.
 
 DEFINE CSVLoader org.apache.pig.piggybank.storage.CSVLoader();
 
-
-1. Write a pig script to find no of complaints which got timely response
-
+1. Write a pig script to find no of complaints which got timely response
 
 A = load'/Consumer_Complaints.csv' using CSVLoader(',');
-
 B = foreach A generate $15 as id,$13 as timely;
-
 C = filter B by timely=='Yes';
-
 D = foreach C generate id,timely;
-
 E = group D by timely;
-
 F = foreach E generate group,COUNT(D.id) as numofcomplaints;
-
 
 store F into '/output/first' using PigStorage(',');
 
-
-
-
 export into mysql:
-
-
 sqoop export --connect jdbc:mysql://localhost/test --username root --table timely_response_of_complaints  -m 1 --export-dir '/output/first/'
 
 
 2. Write a pig script to find no of complaints where consumer forum forwarded the complaint same day they received to respective company
-
+
 A = load'/Consumer_Complaints.csv' using CSVLoader(',') as(f1:chararray,f2:chararray,f3:chararray,f4:chararray,f5:chararray,f6:chararray,f7:chararray,f8:chararray,f9:chararray,f10:chararray,f11:chararray,f12:chararray,f13:chararray,f14:chararray,f15:chararray,f16:chararray);
-
 B = foreach A generate f1 as compdate,f12 as forwdate,f16 as id;
-
 C = filter B by id!='Complaint ID';
-
 D = foreach C generate compdate,forwdate,id;
-
 E = filter D by compdate==forwdate ;
-
 F = foreach E generate compdate as complaint_date,forwdate as forward_date,id;
-
 G = group F by (complaint_date,forward_date);
-
 H = foreach G generate FLATTEN(group) as (complaint_date,forward_date),COUNT(F.id)as noofcomplaits; 
-
 
 store H into '/output/second' using PigStorage(',');
 
-
-
 export into mysql:
-
-
 sqoop export --connect jdbc:mysql://localhost/test --username root --table consumer_forum_action -m 1 --export-dir '/output/second/'
 
-
-
-
-3. Write a pig script to find list of companies toping in complaint chart (companies with
-maximum number of complaints)
-
-
+3. Write a pig script to find list of companies toping in complaint chart (companies with maximum number of complaints)
 
 A = load'/Consumer_Complaints.csv' using CSVLoader(',');
-
 B = foreach A generate $7 as company,$15 as id;
-
 C = group B by company;
-
 D = foreach C generate REPLACE(group,',',' '),COUNT(B.id) as numofcomplaints;
-
 E = Order D by numofcomplaints desc;
-
 F = limit E 100;
 
 store F into '/output/third' using PigStorage(',');
 
-export into mysql
-:
+export into mysql:
 sqoop export --connect jdbc:mysql://localhost/test --username root --table companies_with_max_number_of_complaints -m 1 --export-dir '/output/third/'
 
 
-4. Write a pig script to find no of complaints filed with product type has "Debt
-collection" for the year 2015
-
-
+4. Write a pig script to find no of complaints filed with product type has "Debt collection" for the year 2015
 
 A = load'/Consumer_Complaints.csv' using CSVLoader(',') as (f1:chararray,f2:chararray);
-
 B = filter A by f2=='Debt collection' and GetYear(ToDate(f1,'MM/dd/yyyy'))==2015;
-
 C = foreach B generate f1 as complaintDate,f2 as product;
-
 D = group C by (complaintDate,product);
-
 E = foreach D generate FLATTEN(group)as (complaintDate,product),COUNT(C.product) as numofcomplaints;
-
 store E into '/output/fourth' using PigStorage(',');
 
 
-export into mysql
-:
-
+export into mysql:
 sqoop export --connect jdbc:mysql://localhost/test --username root --table complaints_with_DebtCollection -m 1 --export-dir '/output/fourth/'
